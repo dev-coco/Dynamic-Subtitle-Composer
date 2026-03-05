@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>视频动态字幕合成</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Kavivanar&family=Playwrite+NZ&family=Shantell+Sans:wght@700&family=Playpen+Sans+Thai:wght@700&family=Patrick+Hand&family=Comic+Neue:wght@700&family=Kalam:wght@700&family=Caveat:wght@700&family=Stylish&family=Merienda:wght@700&family=Itim&family=Rubik+Doodle+Shadow&family=Space+Grotesk:wght@400;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/css/page.css">
+  <link rel="stylesheet" href="/css/toastify.min.css">
+</head>
+
+<body>
+  <div class="content">
+    <div class="top-bar">
+      <h1>视频动态字幕合成</h1>
+    </div>
+    <div class="main-content">
+      <div class="left-sidebar">
+        <!-- <div class="section-title">素材文件</div> -->
+        <div class="control-group">
+          <label>🎬 背景视频</label>
+          <input type="file" id="videoInput" accept="video/*">
+        </div>
+        <!-- <div class="control-group">
+          <label>🎵 配音音频</label>
+          <input type="file" id="audioInput" accept="audio/*">
+        </div> -->
+        <div class="control-group">
+          <label>📄 文本内容</label>
+          <textarea id="subtitle"></textarea>
+        </div>
+        <!-- <div class="control-group">
+          <label>📄 JSON 字幕</label>
+          <input type="file" id="lrcInput" accept=".json">
+        </div> -->
+
+
+        <div class="control-group">
+          <label>语音包</label>
+          <select id="voicePack">
+
+
+          </select>
+        </div>
+
+        <div class="section-title">字幕样式</div>
+        <div class="param-card">
+          <div class="row">
+
+            <div class="control-group">
+              <label>字体颜色</label>
+              <input type="color" id="fontColor" value="#ffffff">
+            </div>
+
+            <div class="control-group">
+              <label>高亮背景色</label>
+              <input type="color" id="highlightBg" value="#f03737">
+            </div>
+          </div>
+          <div class="row">
+            <div class="control-group">
+              <label>字体大小</label>
+              <input type="number" id="fontSize" value="60" min="10" max="200">
+            </div>
+            <div class="control-group">
+              <label>行间距</label>
+              <input type="number" id="lineHeightMult" value="1.5" step="0.1">
+            </div>
+          </div>
+          <div class="row">
+            <div class="control-group">
+              <label>背景高度比例</label>
+              <input type="number" id="bgScale" value="1.2" step="0.1">
+            </div>
+            <div class="control-group" style="visibility: hidden;">
+              <label>背景垂直修正</label>
+              <input type="number" id="bgOffset" value="0" step="1">
+            </div>
+          </div>
+          <div class="toggle-row">
+            <input type="checkbox" id="pingPongToggle" checked>
+            <label for="pingPongToggle">视频正反循环</label>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>字体</label>
+          <select id="fontFamily">
+            <optgroup label="系统字体">
+              <option value="Arial">Arial</option>
+              <option value="'Arial Black'">Arial Black</option>
+              <option value="'Comic Sans MS'">Comic Sans MS</option>
+              <option value="Georgia">Georgia</option>
+              <option value="Helvetica">Helvetica</option>
+              <option value="'Palatino Linotype'">Palatino Linotype</option>
+              <option value="Tahoma">Tahoma</option>
+              <option value="'Times New Roman'">Times New Roman</option>
+              <option value="'Trebuchet MS'">Trebuchet MS</option>
+              <option value="Verdana">Verdana</option>
+              <option value="system-ui">System UI</option>
+            </optgroup>
+            <optgroup label="Google Fonts">
+              <option value="Roboto">Roboto</option>
+              <option value="Kavivanar">Kavivanar</option>
+              <option value="'Playwrite NZ'">Playwrite NZ</option>
+              <option value="'Shantell Sans'">Shantell Sans</option>
+              <option value="'Playpen Sans Thai'">Playpen Sans Thai</option>
+              <option value="'Patrick Hand'">Patrick Hand</option>
+              <option value="'Comic Neue'">Comic Neue</option>
+              <option value="Kalam">Kalam</option>
+              <option value="Caveat">Caveat</option>
+              <option value="Stylish">Stylish</option>
+              <option value="Merienda">Merienda</option>
+              <option value="Itim">Itim</option>
+              <option value="'Rubik Doodle Shadow'">Rubik Doodle Shadow</option>
+            </optgroup>
+          </select>
+        </div>
+        <button id="exportBtn">⬇️ 导出视频</button>
+      </div>
+      <div class="right-preview">
+        <div id="previewPlaceholder" class="preview-hint">
+          <span class="icon">🎬</span>
+          选择背景视频后预览将显示在这里
+        </div>
+        <div class="video-container" id="videoContainer">
+          <video id="videoPreview" muted></video>
+          <div id="textOverlay" style="left:10%;top:60%;width:80%;height:30%;">
+            <div id="previewText">Adjust the text area here</div>
+            <div id="resizeHandle"></div>
+          </div>
+        </div>
+        <div class="progress-section">
+          <div class="progress-container" id="progressContainer">
+            <div class="progress-label">
+              <span>正在渲染，可以切换标签页 ☕</span>
+              <span id="progressPct">0%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p id="statusHint">导出完成后将自动弹出保存对话框</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/js/page.js"></script>
+  <script src="/js/toastify.js"></script>
+</body>
+
+</html>
