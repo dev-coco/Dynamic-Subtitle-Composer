@@ -43,8 +43,6 @@
         <div class="control-group">
           <label>语音包</label>
           <select id="voicePack">
-
-
           </select>
         </div>
 
@@ -120,6 +118,10 @@
             </optgroup>
           </select>
         </div>
+        <div class="control-group">
+          <label for="watermarkText">水印文字</label>
+          <input type="text" id="watermarkText" value="Attribution to Elevenlabs.io" placeholder="输入水印内容">
+        </div>
         <button id="exportBtn">⬇️ 导出视频</button>
       </div>
       <div class="right-preview">
@@ -137,13 +139,12 @@
         <div class="progress-section">
           <div class="progress-container" id="progressContainer">
             <div class="progress-label">
-              <span>正在渲染，可以切换标签页 ☕</span>
+              <span>正在渲染，请等待...</span>
               <span id="progressPct">0%</span>
             </div>
             <div class="progress-bar">
               <div class="progress-fill" id="progressFill"></div>
             </div>
-            <p id="statusHint">导出完成后将自动弹出保存对话框</p>
           </div>
         </div>
       </div>

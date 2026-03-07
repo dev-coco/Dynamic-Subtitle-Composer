@@ -1,5 +1,163 @@
 // 字幕数据
-let subtitleData = []
+let subtitleData = [
+  {
+    start: 0.1,
+    end: 1.8,
+    text: 'Cristo murió por mí.',
+    words: [
+      {
+        text: 'Cristo',
+        start: 0.1,
+        end: 0.6
+      },
+      {
+        text: 'murió',
+        start: 0.6,
+        end: 1.1
+      },
+      {
+        text: 'por',
+        start: 1.1,
+        end: 1.3
+      },
+      {
+        text: 'mí.',
+        start: 1.3,
+        end: 1.8
+      }
+    ]
+  },
+  {
+    start: 1.8,
+    end: 3.3,
+    text: 'Ahora yo vivo para él.',
+    words: [
+      {
+        text: 'Ahora',
+        start: 1.8,
+        end: 2.2
+      },
+      {
+        text: 'yo',
+        start: 2.2,
+        end: 2.4
+      },
+      {
+        text: 'vivo',
+        start: 2.4,
+        end: 2.7
+      },
+      {
+        text: 'para',
+        start: 2.7,
+        end: 3
+      },
+      {
+        text: 'él.',
+        start: 3,
+        end: 3.3
+      }
+    ]
+  },
+  {
+    start: 3.3,
+    end: 4.6,
+    text: 'Si amas a Jesús,',
+    words: [
+      {
+        text: 'Si',
+        start: 3.3,
+        end: 3.5
+      },
+      {
+        text: 'amas',
+        start: 3.5,
+        end: 3.8
+      },
+      {
+        text: 'a',
+        start: 3.8,
+        end: 4
+      },
+      {
+        text: 'Jesús,',
+        start: 4,
+        end: 4.6
+      }
+    ]
+  },
+  {
+    start: 4.6,
+    end: 5.9,
+    text: 'qué triste.',
+    words: [
+      {
+        text: 'qué',
+        start: 4.6,
+        end: 5
+      },
+      {
+        text: 'triste.',
+        start: 5,
+        end: 5.9
+      }
+    ]
+  },
+  {
+    start: 6,
+    end: 8.6,
+    text: 'Nadie respondió a esta pregunta.',
+    words: [
+      {
+        text: 'Nadie',
+        start: 6,
+        end: 6.6
+      },
+      {
+        text: 'respondió',
+        start: 6.6,
+        end: 7.2
+      },
+      {
+        text: 'a',
+        start: 7.2,
+        end: 7.4
+      },
+      {
+        text: 'esta',
+        start: 7.4,
+        end: 7.8
+      },
+      {
+        text: 'pregunta.',
+        start: 7.8,
+        end: 8.6
+      }
+    ]
+  },
+  {
+    start: 8.6,
+    end: 9.8,
+    text: '¿Amas a Dios?',
+    words: [
+      {
+        text: '¿Amas',
+        start: 8.6,
+        end: 9
+      },
+      {
+        text: 'a',
+        start: 9,
+        end: 9.2
+      },
+      {
+        text: 'Dios?',
+        start: 9.2,
+        end: 9.8
+      }
+    ]
+  }
+]
 
 // 存储字幕区域的相对位置和大小
 let overlaySettings = {
@@ -30,6 +188,7 @@ const progressPct = document.getElementById('progressPct')
 const fontSizeInput = document.getElementById('fontSize')
 const fontColorInput = document.getElementById('fontColor')
 const fontFamilySelect = document.getElementById('fontFamily')
+const watermarkInput = document.getElementById('watermarkText')
 
 /**
  * @description 左下角提示
@@ -47,6 +206,146 @@ function notify (text) {
       fontSize: '18px'
     }
   }).showToast()
+}
+
+// 分析区域颜色并返回合适的水印颜色
+function analyzeAreaColor (ctx, x, y, width, height) {
+  // 确保分析区域在画布范围内
+  x = Math.max(0, x)
+  y = Math.max(0, y)
+  width = Math.min(ctx.canvas.width - x, width)
+  height = Math.min(ctx.canvas.height - y, height)
+
+  // 如果区域太小，返回默认颜色
+  if (width <= 0 || height <= 0) {
+    return '#ffffff'
+  }
+
+  const imageData = ctx.getImageData(x, y, width, height)
+  const data = imageData.data
+  let totalR = 0
+  let totalG = 0
+  let totalB = 0
+
+  // 计算区域平均颜色
+  for (let i = 0; i < data.length; i += 4) {
+    totalR += data[i]
+    totalG += data[i + 1]
+    totalB += data[i + 2]
+  }
+
+  const pixels = data.length / 4
+  const avgR = totalR / pixels
+  const avgG = totalG / pixels
+  const avgB = totalB / pixels
+
+  // 计算亮度 (使用相对亮度公式)
+  const brightness = (avgR * 0.299 + avgG * 0.587 + avgB * 0.114) / 255
+
+  // 计算背景色的HSL值
+  const [h, s, l] = rgbToHsl(avgR, avgG, avgB)
+
+  // 根据背景颜色决定水印颜色并增加对比度
+  if (brightness > 0.5) {
+    // 如果背景偏亮，使用深色水印
+    // 保持色相，增加饱和度，大幅降低亮度
+    const darkL = Math.max(0, 0.1) // 固定为很暗的值
+    const [r, g, b] = hslToRgb(h, 0.8, darkL)
+    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`
+  } else {
+    // 如果背景偏暗，使用亮色水印
+    // 保持色相，降低饱和度，大幅提高亮度
+    const lightL = Math.min(1, 0.9) // 固定为很亮的值
+    const [r, g, b] = hslToRgb(h, 0.2, lightL)
+    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`
+  }
+}
+
+// RGB转HSL
+function rgbToHsl (r, g, b) {
+  r /= 255
+  g /= 255
+  b /= 255
+
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  let h
+  let s
+  const l = (max + min) / 2
+
+  if (max === min) {
+    h = s = 0
+  } else {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+
+    switch (max) {
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0)
+        break
+      case g:
+        h = (b - r) / d + 2
+        break
+      case b:
+        h = (r - g) / d + 4
+        break
+    }
+
+    h /= 6
+  }
+
+  return [h, s, l]
+}
+
+// HSL转RGB
+function hslToRgb (h, s, l) {
+  let r, g, b
+
+  if (s === 0) {
+    r = g = b = l
+  } else {
+    const hue2rgb = (p, q, t) => {
+      if (t < 0) t += 1
+      if (t > 1) t -= 1
+      if (t < 1 / 6) return p + (q - p) * 6 * t
+      if (t < 1 / 2) return q
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
+      return p
+    }
+
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+    const p = 2 * l - q
+
+    r = hue2rgb(p, q, h + 1 / 3)
+    g = hue2rgb(p, q, h)
+    b = hue2rgb(p, q, h - 1 / 3)
+  }
+
+  return [r * 255, g * 255, b * 255]
+}
+
+// 用临时 canvas 截取当前视频帧，分析水印区域背景色
+function sampleWatermarkColor () {
+  const wmText = watermarkInput ? watermarkInput.value.trim() : ''
+  if (!wmText || videoPreview.readyState < 2) return '#ffffff'
+
+  const tmpCanvas = document.createElement('canvas')
+  const vw = videoPreview.videoWidth || videoContainer.offsetWidth
+  const vh = videoPreview.videoHeight || videoContainer.offsetHeight
+  tmpCanvas.width = vw
+  tmpCanvas.height = vh
+  const tmpCtx = tmpCanvas.getContext('2d', { willReadFrequently: true })
+  tmpCtx.drawImage(videoPreview, 0, 0, vw, vh)
+
+  const wmFs = Math.max(30, vw * 0.022)
+  const padding = 15
+  tmpCtx.font = `bold ${wmFs}px sans-serif`
+  const wmWidth = tmpCtx.measureText(wmText).width + 20
+  const wmHeight = wmFs + 10
+  const sampleX = vw - padding - wmWidth
+  const sampleY = vh - padding - wmHeight
+
+  return analyzeAreaColor(tmpCtx, sampleX, sampleY, wmWidth, wmHeight)
 }
 
 // 更新预览字幕样式
@@ -114,23 +413,60 @@ async function updatePreviewText () {
 
     previewText.appendChild(span)
   })
+
+  // 更新水印预览
+  // 更新水印预览（智能选色）
+  let wmEl = document.getElementById('watermarkPreview')
+  if (!wmEl) {
+    wmEl = document.createElement('div')
+    wmEl.id = 'watermarkPreview'
+    wmEl.style.position = 'absolute'
+    wmEl.style.bottom = '14px'
+    wmEl.style.right = '15px'
+    wmEl.style.pointerEvents = 'none'
+    wmEl.style.fontWeight = 'bold'
+    wmEl.style.zIndex = '999'
+    wmEl.style.transition = 'color 0.3s'
+    videoContainer.appendChild(wmEl)
+  }
+  const wmText = watermarkInput ? watermarkInput.value.trim() : ''
+  wmEl.textContent = wmText
+  const wmFs = Math.max(14, videoContainer.offsetWidth * 0.022)
+  wmEl.style.fontSize = wmFs + 'px'
+  wmEl.style.textShadow = '1px 1px 3px rgba(0,0,0,0.5)'
+  wmEl.style.opacity = '0.65'
+  // 采样当前帧颜色
+  wmEl.style.color = sampleWatermarkColor()
 }
 
 // 监听设置更改
-fontSizeInput.addEventListener('input', () => updatePreviewText())
-fontColorInput.addEventListener('input', () => updatePreviewText())
-fontFamilySelect.addEventListener('change', () => updatePreviewText())
-document.getElementById('highlightBg').addEventListener('input', () => updatePreviewText())
-document.getElementById('bgScale').addEventListener('input', () => updatePreviewText())
+fontSizeInput.addEventListener('input', () => saveSettings())
+fontColorInput.addEventListener('input', () => saveSettings())
+fontFamilySelect.addEventListener('change', () => saveSettings())
+document.getElementById('highlightBg').addEventListener('input', () => saveSettings())
+document.getElementById('bgScale').addEventListener('input', () => saveSettings())
+watermarkInput.addEventListener('input', () => saveSettings())
 
 // 读取视频文件
 videoInput.onchange = e => {
   const file = e.target.files[0]
   if (!file) return
   videoPreview.src = URL.createObjectURL(file)
+  videoPreview.muted = true
   videoContainer.style.display = 'block'
   previewPlaceholder.style.display = 'none'
   videoPreview.onloadedmetadata = () => updatePreviewText()
+  videoPreview.onloadeddata = () => {
+    // 延迟一帧，确保视频画面真正渲染到页面后再采样
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const wmEl = document.getElementById('watermarkPreview')
+        if (wmEl && wmEl.textContent) {
+          wmEl.style.color = sampleWatermarkColor()
+        }
+      })
+    })
+  }
 }
 
 // 字幕层拖拽事件
@@ -145,7 +481,7 @@ textOverlay.addEventListener('mousedown', e => {
   initTop = rect.top - cont.top
 })
 
-// 缩放手柄按下鼠标：
+// 缩放手柄按下鼠标
 document.getElementById('resizeHandle').addEventListener('mousedown', e => {
   resizing = true
   startX = e.clientX
@@ -203,7 +539,6 @@ exportBtn.addEventListener('click', async () => {
 
   notify('正在转换字幕')
   subtitleData = await audioToSubtitle(audioBlob, opalToken)
-  console.log(subtitleData)
   notify('转换字幕完成')
 
   const audioData = await toBase64(audioBlob)
@@ -213,7 +548,8 @@ exportBtn.addEventListener('click', async () => {
   progressContainer.style.display = 'block'
   progressFill.style.width = '0%'
   progressPct.textContent = '0%'
-  document.getElementById('statusHint').textContent = '正在渲染，可以切换标签页 ☕'
+  // 滚动到进度条位置
+  progressContainer.scrollIntoView({ behavior: 'smooth', block: 'center' })
 
   notify('开始渲染视频')
   // 发送到后台渲染
@@ -230,7 +566,8 @@ exportBtn.addEventListener('click', async () => {
       fontFamily: fontFamilySelect.value,
       bgScale: parseFloat(document.getElementById('bgScale').value),
       lineHeightMult: parseFloat(document.getElementById('lineHeightMult').value),
-      pingPong: document.getElementById('pingPongToggle').checked
+      pingPong: document.getElementById('pingPongToggle').checked,
+      watermarkText: watermarkInput ? watermarkInput.value.trim() : ''
     }
   })
 })
@@ -348,8 +685,6 @@ async function getVoicePackList () {
   json.voices.map(x => voicePack.add(new Option(x.name, x.voice_id)))
 }
 
-getVoicePackList()
-
 /**
  * @description 文本转语音
  * @param {string} text - 文本内容
@@ -373,3 +708,38 @@ async function textToSpeech (text, voiceId) {
   }).then(response => response.blob())
   return blob
 }
+
+// 保存配置
+function saveSettings () {
+  chrome.storage.local.set({
+    fontSize: fontSizeInput.value,
+    fontColor: fontColorInput.value,
+    fontFamily: fontFamilySelect.value,
+    highlightBg: document.getElementById('highlightBg').value,
+    bgScale: document.getElementById('bgScale').value,
+    lineHeightMult: document.getElementById('lineHeightMult').value,
+    pingPong: document.getElementById('pingPongToggle').checked,
+    watermarkText: watermarkInput.value
+  })
+  updatePreviewText()
+}
+
+// 加载配置
+function loadSettings () {
+  chrome.storage.local.get(null, config => {
+    if (config.fontSize) fontSizeInput.value = config.fontSize
+    if (config.fontColor) fontColorInput.value = config.fontColor
+    if (config.fontFamily) fontFamilySelect.value = config.fontFamily
+    if (config.highlightBg) document.getElementById('highlightBg').value = config.highlightBg
+    if (config.bgScale) document.getElementById('bgScale').value = config.bgScale
+    if (config.lineHeightMult) document.getElementById('lineHeightMult').value = config.lineHeightMult
+    if (config.pingPong !== undefined) document.getElementById('pingPongToggle').checked = config.pingPong
+    if (config.watermarkText) watermarkInput.value = config.watermarkText
+    // 读取完后刷新预览
+    updatePreviewText()
+  })
+}
+
+// 初始化
+getVoicePackList()
+loadSettings()
