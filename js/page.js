@@ -484,7 +484,7 @@ async function audioToSubtitle (blob, token) {
     systemInstruction: {
       parts: [
         {
-          text: '请你分析音频，然后JSON 格式的文件。每一行（句子）包含它自己的开始和结束时间，以及一个 words 数组，标记每个单词的具体出现时刻。\nAnalyze the attached image carefully and return **ONLY valid JSON**\n```json\n[\n  {\n    "start": 0.5,\n    "end": 3.2,\n    "text": "Napakapalad mo talaga",\n    "words": [\n      { "text": "Napakapalad", "start": 0.5, "end": 1.2 },\n      { "text": "mo", "start": 1.3, "end": 1.8 },\n      { "text": "talaga", "start": 1.9, "end": 3.2 }\n    ]\n  },\n  {\n    "start": 3.5,\n    "end": 6.0,\n    "text": "Maraming tao ang nagskip",\n    "words": [\n      { "text": "Maraming", "start": 3.5, "end": 4.1 },\n      { "text": "tao", "start": 4.2, "end": 4.5 },\n      { "text": "ang", "start": 4.6, "end": 4.8 },\n      { "text": "nagskip", "start": 4.9, "end": 6.0 }\n    ]\n  }\n]\n```'
+          text: '请你分析音频，然后JSON 格式的文件。每一行（句子）包含它自己的开始和结束时间，以及一个 words 数组，句子不能太长，最多不能超过60字符，标记每个单词的具体出现时刻。\nAnalyze the attached image carefully and return **ONLY valid JSON**\n```json\n[\n  {\n    "start": 0.5,\n    "end": 3.2,\n    "text": "Napakapalad mo talaga",\n    "words": [\n      { "text": "Napakapalad", "start": 0.5, "end": 1.2 },\n      { "text": "mo", "start": 1.3, "end": 1.8 },\n      { "text": "talaga", "start": 1.9, "end": 3.2 }\n    ]\n  },\n  {\n    "start": 3.5,\n    "end": 6.0,\n    "text": "Maraming tao ang nagskip",\n    "words": [\n      { "text": "Maraming", "start": 3.5, "end": 4.1 },\n      { "text": "tao", "start": 4.2, "end": 4.5 },\n      { "text": "ang", "start": 4.6, "end": 4.8 },\n      { "text": "nagskip", "start": 4.9, "end": 6.0 }\n    ]\n  }\n]\n```'
         }
       ],
       role: 'user'
