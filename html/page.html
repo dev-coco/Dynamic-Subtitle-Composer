@@ -21,40 +21,28 @@
     </div>
     <div class="main-content">
       <div class="left-sidebar">
-        <!-- <div class="section-title">素材文件</div> -->
         <div class="control-group">
-          <label>🎬 背景视频</label>
-          <input type="file" id="videoInput" accept="video/*">
+          <label>背景视频</label>
+          <input type="file" id="videoInput" accept="video/*" multiple>
+          <div id="videoTabContainer"></div>
         </div>
-        <!-- <div class="control-group">
-          <label>🎵 配音音频</label>
-          <input type="file" id="audioInput" accept="audio/*">
-        </div> -->
+
         <div class="control-group">
-          <label>📄 文本内容</label>
-          <textarea id="subtitle"></textarea>
+          <label>文本内容</label>
+          <textarea id="subtitle" placeholder="请输入文本内容"></textarea>
         </div>
-        <!-- <div class="control-group">
-          <label>📄 JSON 字幕</label>
-          <input type="file" id="lrcInput" accept=".json">
-        </div> -->
-
-
         <div class="control-group">
           <label>语音包</label>
           <select id="voicePack">
           </select>
         </div>
-
         <div class="section-title">字幕样式</div>
         <div class="param-card">
           <div class="row">
-
             <div class="control-group">
               <label>字体颜色</label>
               <input type="color" id="fontColor" value="#ffffff">
             </div>
-
             <div class="control-group">
               <label>高亮背景色</label>
               <input type="color" id="highlightBg" value="#f03737">
@@ -75,14 +63,19 @@
               <label>背景高度比例</label>
               <input type="number" id="bgScale" value="1.2" step="0.1">
             </div>
-            <div class="control-group" style="visibility: hidden;">
-              <label>背景垂直修正</label>
-              <input type="number" id="bgOffset" value="0" step="1">
+            <div class="control-group">
+              <label>水印位置</label>
+              <select id="watermarkPosition">
+                <option value="bottom-right">↘️ 右下角</option>
+                <option value="top-right">↗️ 右上角</option>
+                <option value="bottom-left">↙️ 左下角</option>
+                <option value="top-left">↖️ 左上角</option>
+              </select>
             </div>
           </div>
           <div class="toggle-row">
             <input type="checkbox" id="pingPongToggle" checked>
-            <label for="pingPongToggle">视频正反循环</label>
+            <label for="pingPongToggle">正反交替循环</label>
           </div>
         </div>
         <div class="control-group">
@@ -118,12 +111,16 @@
             </optgroup>
           </select>
         </div>
+
         <div class="control-group">
           <label for="watermarkText">水印文字</label>
           <input type="text" id="watermarkText" value="Attribution to Elevenlabs.io" placeholder="输入水印内容">
         </div>
-        <button id="exportBtn">⬇️ 导出视频</button>
+
+        <button id="exportBtn">导出视频</button>
+
       </div>
+
       <div class="right-preview">
         <div id="previewPlaceholder" class="preview-hint">
           <span class="icon">🎬</span>
@@ -136,17 +133,27 @@
             <div id="resizeHandle"></div>
           </div>
         </div>
+
         <div class="progress-section">
           <div class="progress-container" id="progressContainer">
             <div class="progress-label">
-              <span>正在渲染，请等待...</span>
+              <!-- 左侧：整体批量进度 + 状态文字 -->
+              <div class="progress-label-left">
+                <!-- 整体进度计数，格式：当前/总数，例如 3/7 -->
+                <span id="progressBatchLabel" class="progress-batch-label">0/0</span>
+                <span>正在渲染，请等待...</span>
+              </div>
+              <!-- 右侧：当前视频百分比 -->
               <span id="progressPct">0%</span>
             </div>
             <div class="progress-bar">
               <div class="progress-fill" id="progressFill"></div>
             </div>
+            <!-- 导出状态提示文字 -->
+            <div id="statusHint">导出完成后将自动弹出保存对话框</div>
           </div>
         </div>
+
       </div>
     </div>
   </div>

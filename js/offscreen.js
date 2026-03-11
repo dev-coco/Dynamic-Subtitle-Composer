@@ -22,6 +22,10 @@ const REMOTE_FONTS_CONFIG = {
 
 const fontDataUriCache = {}
 
+/**
+ * @description 加载字体
+ * @param {string} fontFamily - 字体名称
+ */
 async function loadFont (fontFamily) {
   const fontName = fontFamily.replace(/'/g, '').trim()
   if (!REMOTE_FONTS_CONFIG[fontName]) return
@@ -39,7 +43,7 @@ async function loadFont (fontFamily) {
       let fontUrl = null
       for (const block of faceBlocks) {
         const isBold = /font-weight\s*:\s*(bold|700)/i.test(block)
-        const urlMatch = block.match(/url\(([^)]+)\)\s+format\(['"']?woff2['"']?\)/)
+        const urlMatch = block.match(/url\(([^)]+)\)\s+format\(['"]?woff2['"]?\)/)
         if (urlMatch) {
           const url = urlMatch[1].replace(/['"]/g, '')
           if (!fontUrl) fontUrl = url
@@ -65,7 +69,7 @@ async function loadFont (fontFamily) {
       }
 
       fontDataUriCache[fontName] = `data:font/woff2;base64,${btoa(binary)}`
-      console.log('woff2 下载完成:', fontName, (fontBuffer.byteLength / 1024).toFixed(1), 'KB')
+      console.log('woff2 下载完成', fontName, (fontBuffer.byteLength / 1024).toFixed(1), 'KB')
     }
 
     await registerFontFaces(fontName)
@@ -76,7 +80,7 @@ async function loadFont (fontFamily) {
     await new Promise(r => setTimeout(r, 300))
 
     console.log(
-      '加载字体成功:',
+      '加载字体成功',
       fontName,
       [...document.fonts].filter(f => f.family.replace(/'/g, '').trim() === fontName).map(f => `w${f.weight}(${f.status})`)
     )
@@ -85,6 +89,10 @@ async function loadFont (fontFamily) {
   }
 }
 
+/**
+ * @description 注册字体
+ * @param {string} fontName - 字体名称
+ */
 async function registerFontFaces (fontName) {
   const dataUri = fontDataUriCache[fontName]
   if (!dataUri) return
@@ -95,20 +103,30 @@ async function registerFontFaces (fontName) {
     const loaded = await face.load()
     document.fonts.add(loaded)
   }
+
   await document.fonts.ready
 }
 
+// 注册字体
 async function reAddFonts () {
   for (const fontName of Object.keys(fontDataUriCache)) {
     await registerFontFaces(fontName)
   }
+
   await document.fonts.ready
 }
 
+/**
+ * @description 文本自动换行
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D 绘图上下文
+ * @param {Object[]} words - 单词数组
+ * @param {number} maxWidth - 每行允许的最大宽度
+ * @returns {Object[][]} 返回二维数组，每个子数组表示一行的单词对象
+ */
 function getWrappedLines (ctx, words, maxWidth) {
   const lines = []
-  let currentLine = [],
-    currentWidth = 0
+  let currentLine = []
+  let currentWidth = 0
   const spaceWidth = ctx.measureText(' ').width
 
   words.forEach(word => {
@@ -126,7 +144,15 @@ function getWrappedLines (ctx, words, maxWidth) {
   return lines
 }
 
-// 分析区域颜色并返回合适的水印颜色
+/**
+ * @description 分析区域颜色并返回合适的水印颜色
+ * @param {CanvasRenderingContext2D} ctx - Canvas 2D 绘图上下文
+ * @param {number} x - 分析区域左上角的 X 坐标
+ * @param {number} y - 分析区域左上角的 Y 坐标
+ * @param {number} width - 分析区域宽度
+ * @param {number} height - 分析区域高度
+ * @returns {string} 根据背景颜色计算得到的适合显示水印的 RGB 颜色字符串
+ */
 function analyzeAreaColor (ctx, x, y, width, height) {
   // 确保分析区域在画布范围内
   x = Math.max(0, x)
@@ -167,19 +193,23 @@ function analyzeAreaColor (ctx, x, y, width, height) {
   if (brightness > 0.5) {
     // 如果背景偏亮，使用深色水印
     // 保持色相，增加饱和度，大幅降低亮度
-    const darkL = Math.max(0, 0.1) // 固定为很暗的值
-    const [r, g, b] = hslToRgb(h, 0.8, darkL)
+    const [r, g, b] = hslToRgb(h, 0.8, 0.1)
     return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`
   } else {
     // 如果背景偏暗，使用亮色水印
     // 保持色相，降低饱和度，大幅提高亮度
-    const lightL = Math.min(1, 0.9) // 固定为很亮的值
-    const [r, g, b] = hslToRgb(h, 0.2, lightL)
+    const [r, g, b] = hslToRgb(h, 0.2, 0.9)
     return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`
   }
 }
 
-// RGB转HSL
+/**
+ * @description 将 RGB 转换为 HSL
+ * @param {number} r - 红色通道值，范围 0 到 255
+ * @param {number} g - 绿色通道值，范围 0 到 255
+ * @param {number} b - 蓝色通道值，范围 0 到 255
+ * @returns {number[]} 返回 HSL 数组，包含色相 h、饱和度 s、亮度 l，范围均为 0 到 1
+ */
 function rgbToHsl (r, g, b) {
   r /= 255
   g /= 255
@@ -215,7 +245,13 @@ function rgbToHsl (r, g, b) {
   return [h, s, l]
 }
 
-// HSL转RGB
+/**
+ * @description 将 HSL 转换为 RGB
+ * @param {number} h - 色相值，范围 0 到 1
+ * @param {number} s - 饱和度值，范围 0 到 1
+ * @param {number} l - 亮度值，范围 0 到 1
+ * @returns {number[]} 返回 RGB 数组，包含 r、g、b 三个通道值，范围 0 到 255
+ */
 function hslToRgb (h, s, l) {
   let r, g, b
 
@@ -242,10 +278,23 @@ function hslToRgb (h, s, l) {
   return [r * 255, g * 255, b * 255]
 }
 
-function drawSubtitle (t, payload) {
+/**
+ * @description 渲染当对应时间的字幕
+ * @param {number} time - 当前视频播放时间
+ * @param {Object} payload - 渲染参数对象
+ * @param {Object[]} payload.subtitleData - 字幕数据数组
+ * @param {Object} payload.overlaySettings - 叠加区域百分比配置
+ * @param {number} payload.fontSize - 字体大小比例
+ * @param {string} payload.highlightBg - 单词高亮背景颜色
+ * @param {string} [payload.fontColor='#ffffff'] - 字体颜色
+ * @param {string} [payload.fontFamily='Arial'] - 字体名称
+ * @param {number} payload.bgScale - 高亮背景高度缩放比例
+ * @param {number} payload.lineHeightMult - 行高倍数
+ */
+function drawSubtitle (time, payload) {
   const { subtitleData, overlaySettings, fontSize, highlightBg, fontColor = '#ffffff', fontFamily = 'Arial', bgScale, lineHeightMult } = payload
 
-  const sentence = subtitleData.find(s => t >= s.start && t < s.end)
+  const sentence = subtitleData.find(s => time >= s.start && time < s.end)
   if (!sentence) return
 
   const fs = (fontSize * canvas.width) / 900
@@ -256,6 +305,7 @@ function drawSubtitle (t, payload) {
   if (ctx.font.includes('sans-serif') || ctx.font === '10px sans-serif') {
     ctx.font = `bold ${fs}px ${fontName}`
   }
+
   ctx.textBaseline = 'middle'
 
   const rectX = (overlaySettings.left / 100) * canvas.width
@@ -296,7 +346,7 @@ function drawSubtitle (t, payload) {
     line.forEach(word => {
       const wW = ctx.measureText(word.text).width
 
-      if (t >= word.start && t < word.end) {
+      if (time >= word.start && time < word.end) {
         ctx.save()
         ctx.fillStyle = highlightBg
         const bgHWord = fs * bgScale
@@ -322,6 +372,11 @@ function drawSubtitle (t, payload) {
   })
 }
 
+/**
+ * @description 视频播放时间跳转到目标时间
+ * @param {number} targetTime - 目标播放时间
+ * @returns {Promise<void>} 播放器完成跳转后的 Promise
+ */
 async function seekTo (targetTime) {
   if (Math.abs(videoSource.currentTime - targetTime) < 0.033) return
   return new Promise(resolve => {
@@ -330,30 +385,135 @@ async function seekTo (targetTime) {
   })
 }
 
+/**
+ * @description dataURL 转换 ArrayBuffer
+ * @param {string} dataURL - base64 资源
+ * @returns {Promise<ArrayBuffer>} 返回对应的 ArrayBuffer 数据
+ */
 async function dataURLToArrayBuffer (dataURL) {
   const res = await fetch(dataURL)
   return res.arrayBuffer()
 }
 
+/**
+ * @description 绘制水印（支持四角定位，智能选色）
+ * watermarkPosition 取值：bottom-right | bottom-left | top-right | top-left
+ */
+
+/**
+ * @description 绘制水印文本
+ * @param {Object} payload - 水印参数对象
+ * @param {string} payload.watermarkText - 水印文本内容
+ * @param {string} [payload.watermarkPosition='bottom-right'] - 水印显示位置
+ */
+function drawWatermark (payload) {
+  if (!payload.watermarkText) return
+
+  const wmPos = payload.watermarkPosition || 'bottom-right'
+  // 水印字体大小
+  const wmFs = Math.max(30, canvas.width * 0.022)
+  // 水印内边距
+  const padding = 15
+
+  ctx.save()
+  // 水印字体
+  ctx.font = `bold ${wmFs}px sans-serif`
+
+  // 水印宽度 + 外边距
+  const wmWidth = ctx.measureText(payload.watermarkText).width + 20
+  const wmHeight = wmFs + 10
+  let drawX, drawY, sampleX, sampleY
+
+  if (wmPos === 'bottom-right') {
+    // 右下角
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'bottom'
+    drawX = canvas.width - padding
+    drawY = canvas.height - padding
+    sampleX = canvas.width - padding - wmWidth
+    sampleY = canvas.height - padding - wmHeight
+  } else if (wmPos === 'bottom-left') {
+    // 左下角
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'bottom'
+    drawX = padding
+    drawY = canvas.height - padding
+    sampleX = padding
+    sampleY = canvas.height - padding - wmHeight
+  } else if (wmPos === 'top-right') {
+    // 右上角
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'top'
+    drawX = canvas.width - padding
+    drawY = padding
+    sampleX = canvas.width - padding - wmWidth
+    sampleY = padding
+  } else {
+    // 左上角
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    drawX = padding
+    drawY = padding
+    sampleX = padding
+    sampleY = padding
+  }
+
+  // 智能分析水印区域背景色，选择对比色
+  const smartColor = analyzeAreaColor(ctx, sampleX, sampleY, wmWidth, wmHeight)
+
+  // 半透明描边增强可读性
+  ctx.shadowColor = 'rgba(0,0,0,0.4)'
+  ctx.shadowBlur = 6
+  ctx.globalAlpha = 0.65
+  ctx.fillStyle = smartColor
+  ctx.fillText(payload.watermarkText, drawX, drawY)
+  ctx.restore()
+}
+
+/**
+ * @description 完整导出视频
+ * @param {Object} payload - 导出参数对象
+ * @param {string} payload.videoData - 视频源
+ * @param {string} payload.audioData - 音频源
+ * @param {string} payload.fontFamily - 字体名称
+ * @param {boolean} [payload.pingPong=false] - 是否启用往返循环播放逻辑
+ * @param {Object[]} payload.subtitleData - 字幕数组，每条包含 start、end、words
+ * @param {Object} payload.overlaySettings - 叠加区域配置
+ * @param {string} payload.highlightBg - 高亮颜色
+ * @param {string} [payload.fontColor='#ffffff'] - 字体颜色
+ * @param {number} payload.fontSize - 字体大小比例
+ * @param {number} payload.lineHeightMult - 行高倍数
+ * @param {number} payload.bgScale - 高亮背景缩放比例
+ * @param {string} [payload.watermarkText] - 水印文本
+ * @param {string} [payload.watermarkPosition='bottom-right'] - 水印位置
+ * @param {number} [payload.batchIndex=0] - 批量导出索引
+ * @returns {Promise<void>} 导出完成后通过 chrome.runtime 消息发送 Blob URL
+ */
 async function startExport (payload) {
   const { pingPong } = payload
 
+  // 加载字体
   await loadFont(payload.fontFamily)
 
+  // 设置视频和音频源
   videoSource.src = payload.videoData
   audioSource.src = payload.audioData
 
+  // 等待视频和音频元数据加载完成
   await Promise.all([
-    new Promise(r => {
-      videoSource.onloadedmetadata = r
+    new Promise(res => {
+      videoSource.onloadedmetadata = res
     }),
-    new Promise(r => {
-      audioSource.onloadedmetadata = r
+    new Promise(res => {
+      audioSource.onloadedmetadata = res
     })
   ])
 
+  // 设置 canvas 尺寸与视频一致
   canvas.width = videoSource.videoWidth
   canvas.height = videoSource.videoHeight
+
+  // 重新注册一次字体，避免字体失效
   await reAddFonts()
 
   const audioDuration = audioSource.duration
@@ -362,7 +522,7 @@ async function startExport (payload) {
   const sampleRate = 44100
   const totalFrames = Math.ceil(audioDuration * FPS)
 
-  // ── 第一步：用 OfflineAudioContext 把音频完整预渲染为 PCM buffer ──
+  // 预渲染音频为 PCM buffer
   console.log('预渲染音频...')
   const rawAudioBuffer = await dataURLToArrayBuffer(payload.audioData)
   const offlineCtx = new OfflineAudioContext(2, Math.ceil(audioDuration * sampleRate), sampleRate)
@@ -372,14 +532,13 @@ async function startExport (payload) {
   offlineSrc.connect(offlineCtx.destination)
   offlineSrc.start()
   const renderedAudioBuffer = await offlineCtx.startRendering()
-  console.log('音频预渲染完成:', renderedAudioBuffer.duration.toFixed(2), 's')
+  console.log('音频预渲染完成', renderedAudioBuffer.duration.toFixed(2), 's')
 
-  // 提取左右声道 PCM Float32 数据
+  // 提取左右声道 PCM 数据
   const leftChannel = renderedAudioBuffer.getChannelData(0)
   const rightChannel = renderedAudioBuffer.numberOfChannels > 1 ? renderedAudioBuffer.getChannelData(1) : leftChannel
 
-  // ── 第二步：初始化 webm-muxer ──────────────────────────────────
-  // WebmMuxer 由 offscreen.html 中的 script 标签提供
+  // 初始化 WebM Muxer
   const muxer = new WebMMuxer.Muxer({
     target: new WebMMuxer.ArrayBufferTarget(),
     video: {
@@ -396,8 +555,8 @@ async function startExport (payload) {
     firstTimestampBehavior: 'offset'
   })
 
-  // ── 第三步：初始化 VideoEncoder ────────────────────────────────
-  let videoEncoderFinished = false
+  // 初始化 VideoEncoder
+  // let videoEncoderFinished = false
   const videoEncoder = new VideoEncoder({
     output: (chunk, meta) => {
       muxer.addVideoChunk(chunk, meta)
@@ -413,9 +572,9 @@ async function startExport (payload) {
     framerate: FPS
   })
 
-  // ── 第四步：初始化 AudioEncoder ────────────────────────────────
-  const AUDIO_CHUNK_FRAMES = 960 // Opus 标准帧大小（20ms @ 48kHz），44100 时约 882，取 960 兼容
-  let audioEncoderFinished = false
+  // 初始化 AudioEncoder
+  const AUDIO_CHUNK_FRAMES = 960
+  // let audioEncoderFinished = false
   const audioEncoder = new AudioEncoder({
     output: (chunk, meta) => {
       muxer.addAudioChunk(chunk, meta)
@@ -430,15 +589,13 @@ async function startExport (payload) {
     bitrate: 128_000
   })
 
-  // ── 第五步：提前把全部音频 chunk 送入 AudioEncoder ─────────────
-  // 音频和视频分开送，完全不依赖时钟，各自按采样位置打时间戳
+  // 把音频 chunk 传入 AudioEncoder 编码
   console.log('编码音频...')
   const totalAudioSamples = leftChannel.length
   for (let offset = 0; offset < totalAudioSamples; offset += AUDIO_CHUNK_FRAMES) {
     const frameCount = Math.min(AUDIO_CHUNK_FRAMES, totalAudioSamples - offset)
     const timestampUs = Math.round((offset / sampleRate) * 1_000_000)
 
-    // f32-planar 格式：左声道数据全部在前，右声道数据全部在后
     const planar = new Float32Array(frameCount * 2)
     planar.set(leftChannel.subarray(offset, offset + frameCount), 0)
     planar.set(rightChannel.subarray(offset, offset + frameCount), frameCount)
@@ -455,15 +612,16 @@ async function startExport (payload) {
     audioEncoder.encode(audioData)
     audioData.close()
 
+    // 每隔一定数量帧让出主线程
     if (offset % (AUDIO_CHUNK_FRAMES * 100) === 0) {
-      await new Promise(r => setTimeout(r, 0))
+      await new Promise(res => setTimeout(res, 0))
     }
   }
 
   await audioEncoder.flush()
   console.log('音频编码完成')
 
-  // ── 第六步：逐帧渲染视频，seek → 画帧 → VideoEncoder.encode ───
+  // 逐帧渲染视频
   console.log('开始渲染视频帧...')
   videoSource.currentTime = 0
   await seekTo(0)
@@ -472,10 +630,10 @@ async function startExport (payload) {
 
   for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
     const elapsed = frameIndex / FPS
-    const timestampUs = Math.round(elapsed * 1_000_000) // 微秒
+    const timestampUs = Math.round(elapsed * 1_000_000)
     const durationUs = Math.round(1_000_000 / FPS)
 
-    // 计算视频时间（完整保留 pingPong 逻辑）
+    // 支持 ping-pong 循环逻辑
     let videoT = elapsed % videoDuration
     if (pingPong) {
       const cycle = Math.floor(elapsed / videoDuration)
@@ -486,40 +644,14 @@ async function startExport (payload) {
     ctx.drawImage(videoSource, 0, 0, canvas.width, canvas.height)
     drawSubtitle(elapsed, payload)
 
-    // 绘制水印到右下角（智能选色）
-    if (payload.watermarkText) {
-      const wmFs = Math.max(30, canvas.width * 0.022)
-      const padding = 15
-      ctx.save()
-      ctx.font = `bold ${wmFs}px sans-serif`
-      ctx.textAlign = 'right'
-      ctx.textBaseline = 'bottom'
-
-      // 计算水印文字区域的位置，用于采样背景色
-      const wmWidth = ctx.measureText(payload.watermarkText).width + 20
-      const wmHeight = wmFs + 10
-      const sampleX = canvas.width - padding - wmWidth
-      const sampleY = canvas.height - padding - wmHeight
-
-      // 智能分析水印区域背景色，选择对比色
-      const smartColor = analyzeAreaColor(ctx, sampleX, sampleY, wmWidth, wmHeight)
-
-      // 先绘制半透明背景描边增强可读性
-      ctx.shadowColor = 'rgba(0,0,0,0.4)'
-      ctx.shadowBlur = 6
-      ctx.globalAlpha = 0.65
-      ctx.fillStyle = smartColor
-      ctx.fillText(payload.watermarkText, canvas.width - padding, canvas.height - padding)
-      ctx.restore()
-    }
+    // 绘制字幕与水印
+    drawWatermark(payload)
 
     if (!debugFrameDone && elapsed > 0.5) {
       debugFrameDone = true
-      // const dataUrl = canvas.toDataURL('image/png')
-      // console.log('第一帧截图', dataUrl)
     }
 
-    // 每隔 30 帧插入一个关键帧，保证 seek 精度
+    // 每隔 30 帧插入一个关键帧
     const keyFrame = frameIndex % 30 === 0
 
     const videoFrame = new VideoFrame(canvas, {
@@ -530,6 +662,7 @@ async function startExport (payload) {
     videoEncoder.encode(videoFrame, { keyFrame })
     videoFrame.close()
 
+    // 当前视频渲染进度
     chrome.runtime.sendMessage({
       type: 'export-progress',
       progress: elapsed / audioDuration
@@ -542,7 +675,7 @@ async function startExport (payload) {
   await videoEncoder.flush()
   console.log('视频帧编码完成')
 
-  // ── 第七步：封装并导出 ──────────────────────────────────────────
+  // 封装并导出 WebM
   muxer.finalize()
 
   const { buffer } = muxer.target
@@ -550,7 +683,13 @@ async function startExport (payload) {
   const blobUrl = URL.createObjectURL(blob)
 
   console.log('完成，大小:', (blob.size / 1024 / 1024).toFixed(2), 'MB')
-  chrome.runtime.sendMessage({ type: 'export-done', blobUrl })
+
+  // 将 blob URL 和批次信息发送给 background.js 下载
+  chrome.runtime.sendMessage({
+    type: 'export-done',
+    blobUrl,
+    batchIndex: payload.batchIndex !== undefined ? payload.batchIndex : 0
+  })
 }
 
 chrome.runtime.onMessage.addListener(msg => {
