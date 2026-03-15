@@ -43,7 +43,7 @@ async function loadFont (fontFamily) {
       let fontUrl = null
       for (const block of faceBlocks) {
         const isBold = /font-weight\s*:\s*(bold|700)/i.test(block)
-        const urlMatch = block.match(/url\(([^)]+)\)\s+format\(['"]?woff2['"]?\)/)
+        const urlMatch = block.match(/url\(([^)]+)\)\s+format\(['"']?woff2['"']?\)/)
         if (urlMatch) {
           const url = urlMatch[1].replace(/['"]/g, '')
           if (!fontUrl) fontUrl = url
@@ -145,140 +145,6 @@ function getWrappedLines (ctx, words, maxWidth) {
 }
 
 /**
- * @description 分析区域颜色并返回合适的水印颜色
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D 绘图上下文
- * @param {number} x - 分析区域左上角的 X 坐标
- * @param {number} y - 分析区域左上角的 Y 坐标
- * @param {number} width - 分析区域宽度
- * @param {number} height - 分析区域高度
- * @returns {string} 根据背景颜色计算得到的适合显示水印的 RGB 颜色字符串
- */
-function analyzeAreaColor (ctx, x, y, width, height) {
-  // 确保分析区域在画布范围内
-  x = Math.max(0, x)
-  y = Math.max(0, y)
-  width = Math.min(ctx.canvas.width - x, width)
-  height = Math.min(ctx.canvas.height - y, height)
-
-  // 如果区域太小，返回默认颜色
-  if (width <= 0 || height <= 0) {
-    return '#ffffff'
-  }
-
-  const imageData = ctx.getImageData(x, y, width, height)
-  const data = imageData.data
-  let totalR = 0
-  let totalG = 0
-  let totalB = 0
-
-  // 计算区域平均颜色
-  for (let i = 0; i < data.length; i += 4) {
-    totalR += data[i]
-    totalG += data[i + 1]
-    totalB += data[i + 2]
-  }
-
-  const pixels = data.length / 4
-  const avgR = totalR / pixels
-  const avgG = totalG / pixels
-  const avgB = totalB / pixels
-
-  // 计算亮度 (使用相对亮度公式)
-  const brightness = (avgR * 0.299 + avgG * 0.587 + avgB * 0.114) / 255
-
-  // 计算背景色的HSL值
-  const [h, s, l] = rgbToHsl(avgR, avgG, avgB)
-
-  // 根据背景颜色决定水印颜色并增加对比度
-  if (brightness > 0.5) {
-    // 如果背景偏亮，使用深色水印
-    // 保持色相，增加饱和度，大幅降低亮度
-    const [r, g, b] = hslToRgb(h, 0.8, 0.1)
-    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`
-  } else {
-    // 如果背景偏暗，使用亮色水印
-    // 保持色相，降低饱和度，大幅提高亮度
-    const [r, g, b] = hslToRgb(h, 0.2, 0.9)
-    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`
-  }
-}
-
-/**
- * @description 将 RGB 转换为 HSL
- * @param {number} r - 红色通道值，范围 0 到 255
- * @param {number} g - 绿色通道值，范围 0 到 255
- * @param {number} b - 蓝色通道值，范围 0 到 255
- * @returns {number[]} 返回 HSL 数组，包含色相 h、饱和度 s、亮度 l，范围均为 0 到 1
- */
-function rgbToHsl (r, g, b) {
-  r /= 255
-  g /= 255
-  b /= 255
-
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  let h
-  let s
-  const l = (max + min) / 2
-
-  if (max === min) {
-    h = s = 0
-  } else {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-
-    switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0)
-        break
-      case g:
-        h = (b - r) / d + 2
-        break
-      case b:
-        h = (r - g) / d + 4
-        break
-    }
-
-    h /= 6
-  }
-
-  return [h, s, l]
-}
-
-/**
- * @description 将 HSL 转换为 RGB
- * @param {number} h - 色相值，范围 0 到 1
- * @param {number} s - 饱和度值，范围 0 到 1
- * @param {number} l - 亮度值，范围 0 到 1
- * @returns {number[]} 返回 RGB 数组，包含 r、g、b 三个通道值，范围 0 到 255
- */
-function hslToRgb (h, s, l) {
-  let r, g, b
-
-  if (s === 0) {
-    r = g = b = l
-  } else {
-    const hue2rgb = (p, q, t) => {
-      if (t < 0) t += 1
-      if (t > 1) t -= 1
-      if (t < 1 / 6) return p + (q - p) * 6 * t
-      if (t < 1 / 2) return q
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
-      return p
-    }
-
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
-    const p = 2 * l - q
-
-    r = hue2rgb(p, q, h + 1 / 3)
-    g = hue2rgb(p, q, h)
-    b = hue2rgb(p, q, h - 1 / 3)
-  }
-
-  return [r * 255, g * 255, b * 255]
-}
-
-/**
  * @description 渲染当对应时间的字幕
  * @param {number} time - 当前视频播放时间
  * @param {Object} payload - 渲染参数对象
@@ -375,7 +241,7 @@ function drawSubtitle (time, payload) {
 /**
  * @description 视频播放时间跳转到目标时间
  * @param {number} targetTime - 目标播放时间
- * @returns {Promise<void>} 播放器完成跳转后的 Promise
+ * @returns {Promise} 播放器完成跳转后的 Promise
  */
 async function seekTo (targetTime) {
   if (Math.abs(videoSource.currentTime - targetTime) < 0.033) return
@@ -388,17 +254,12 @@ async function seekTo (targetTime) {
 /**
  * @description dataURL 转换 ArrayBuffer
  * @param {string} dataURL - base64 资源
- * @returns {Promise<ArrayBuffer>} 返回对应的 ArrayBuffer 数据
+ * @returns {Promise} 返回对应的 ArrayBuffer 数据
  */
 async function dataURLToArrayBuffer (dataURL) {
   const res = await fetch(dataURL)
   return res.arrayBuffer()
 }
-
-/**
- * @description 绘制水印（支持四角定位，智能选色）
- * watermarkPosition 取值：bottom-right | bottom-left | top-right | top-left
- */
 
 /**
  * @description 绘制水印文本
@@ -473,7 +334,7 @@ function drawWatermark (payload) {
 /**
  * @description 完整导出视频
  * @param {Object} payload - 导出参数对象
- * @param {string} payload.videoData - 视频源
+ * @param {string} payload.videoData - 视频源（base64 data URL，视频或图片）
  * @param {string} payload.audioData - 音频源
  * @param {string} payload.fontFamily - 字体名称
  * @param {boolean} [payload.pingPong=false] - 是否启用往返循环播放逻辑
@@ -486,32 +347,53 @@ function drawWatermark (payload) {
  * @param {number} payload.bgScale - 高亮背景缩放比例
  * @param {string} [payload.watermarkText] - 水印文本
  * @param {string} [payload.watermarkPosition='bottom-right'] - 水印位置
+ * @param {string} [payload.particleEffect='none'] - 粒子特效类型
  * @param {number} [payload.batchIndex=0] - 批量导出索引
- * @returns {Promise<void>} 导出完成后通过 chrome.runtime 消息发送 Blob URL
+ * @returns {Promise} 导出完成后通过 chrome.runtime 消息发送 Blob URL
  */
 async function startExport (payload) {
   const { pingPong } = payload
 
+  // 判断是否为图片文件
+  const isImage = payload.videoData.startsWith('data:image/')
+
   // 加载字体
   await loadFont(payload.fontFamily)
 
-  // 设置视频和音频源
-  videoSource.src = payload.videoData
+  // 设置音频源
   audioSource.src = payload.audioData
 
-  // 等待视频和音频元数据加载完成
-  await Promise.all([
-    new Promise(res => {
-      videoSource.onloadedmetadata = res
-    }),
-    new Promise(res => {
+  let imgElement = null
+
+  if (isImage) {
+    // 图片直接加载为 HTMLImageElement
+    imgElement = await new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = reject
+      img.src = payload.videoData
+    })
+    canvas.width = imgElement.naturalWidth
+    canvas.height = imgElement.naturalHeight
+    // 只等音频元数据
+    await new Promise(res => {
       audioSource.onloadedmetadata = res
     })
-  ])
-
-  // 设置 canvas 尺寸与视频一致
-  canvas.width = videoSource.videoWidth
-  canvas.height = videoSource.videoHeight
+  } else {
+    // 设置视频源并等待视频和音频元数据加载完成
+    videoSource.src = payload.videoData
+    await Promise.all([
+      new Promise(res => {
+        videoSource.onloadedmetadata = res
+      }),
+      new Promise(res => {
+        audioSource.onloadedmetadata = res
+      })
+    ])
+    // 设置 canvas 尺寸与视频一致
+    canvas.width = videoSource.videoWidth
+    canvas.height = videoSource.videoHeight
+  }
 
   // 重新注册一次字体，避免字体失效
   await reAddFonts()
@@ -556,7 +438,6 @@ async function startExport (payload) {
   })
 
   // 初始化 VideoEncoder
-  // let videoEncoderFinished = false
   const videoEncoder = new VideoEncoder({
     output: (chunk, meta) => {
       muxer.addVideoChunk(chunk, meta)
@@ -573,8 +454,7 @@ async function startExport (payload) {
   })
 
   // 初始化 AudioEncoder
-  const AUDIO_CHUNK_FRAMES = 960
-  // let audioEncoderFinished = false
+  const audioChunkFrames = 960
   const audioEncoder = new AudioEncoder({
     output: (chunk, meta) => {
       muxer.addAudioChunk(chunk, meta)
@@ -592,8 +472,8 @@ async function startExport (payload) {
   // 把音频 chunk 传入 AudioEncoder 编码
   console.log('编码音频...')
   const totalAudioSamples = leftChannel.length
-  for (let offset = 0; offset < totalAudioSamples; offset += AUDIO_CHUNK_FRAMES) {
-    const frameCount = Math.min(AUDIO_CHUNK_FRAMES, totalAudioSamples - offset)
+  for (let offset = 0; offset < totalAudioSamples; offset += audioChunkFrames) {
+    const frameCount = Math.min(audioChunkFrames, totalAudioSamples - offset)
     const timestampUs = Math.round((offset / sampleRate) * 1_000_000)
 
     const planar = new Float32Array(frameCount * 2)
@@ -613,7 +493,7 @@ async function startExport (payload) {
     audioData.close()
 
     // 每隔一定数量帧让出主线程
-    if (offset % (AUDIO_CHUNK_FRAMES * 100) === 0) {
+    if (offset % (audioChunkFrames * 100) === 0) {
       await new Promise(res => setTimeout(res, 0))
     }
   }
@@ -621,10 +501,19 @@ async function startExport (payload) {
   await audioEncoder.flush()
   console.log('音频编码完成')
 
+  // 初始化粒子（导出渲染用，与预览粒子数量一致）
+  const effect = payload.particleEffect || 'none'
+  const exportParticleCount = 160
+  const exportParticles = effect !== 'none' ? Array.from({ length: exportParticleCount }, () => new Particle(canvas.width, canvas.height, effect, true)) : []
+
   // 逐帧渲染视频
   console.log('开始渲染视频帧...')
-  videoSource.currentTime = 0
-  await seekTo(0)
+
+  // 图片模式不需要 seek，视频模式初始化到第 0 帧
+  if (!isImage) {
+    videoSource.currentTime = 0
+    await seekTo(0)
+  }
 
   let debugFrameDone = false
 
@@ -633,15 +522,28 @@ async function startExport (payload) {
     const timestampUs = Math.round(elapsed * 1_000_000)
     const durationUs = Math.round(1_000_000 / FPS)
 
-    // 支持 ping-pong 循环逻辑
-    let videoT = elapsed % videoDuration
-    if (pingPong) {
-      const cycle = Math.floor(elapsed / videoDuration)
-      videoT = cycle % 2 === 1 ? videoDuration - (elapsed % videoDuration) : elapsed % videoDuration
+    if (isImage) {
+      // 图片每帧直接绘制，不需要 seek
+      ctx.drawImage(imgElement, 0, 0, canvas.width, canvas.height)
+    } else {
+      // 支持正反循环逻辑
+      let videoT = elapsed % videoDuration
+      if (pingPong) {
+        const cycle = Math.floor(elapsed / videoDuration)
+        videoT = cycle % 2 === 1 ? videoDuration - (elapsed % videoDuration) : elapsed % videoDuration
+      }
+      await seekTo(videoT)
+      ctx.drawImage(videoSource, 0, 0, canvas.width, canvas.height)
     }
 
-    await seekTo(videoT)
-    ctx.drawImage(videoSource, 0, 0, canvas.width, canvas.height)
+    // 绘制粒子特效层
+    if (effect !== 'none') {
+      exportParticles.forEach(p => {
+        p.update(1)
+        p.draw(ctx)
+      })
+    }
+
     drawSubtitle(elapsed, payload)
 
     // 绘制字幕与水印

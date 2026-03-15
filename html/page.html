@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,7 +12,6 @@
   <link rel="stylesheet" href="/css/page.css">
   <link rel="stylesheet" href="/css/toastify.min.css">
 </head>
-
 <body>
   <div class="content">
     <div class="top-bar">
@@ -23,10 +21,9 @@
       <div class="left-sidebar">
         <div class="control-group">
           <label>背景视频</label>
-          <input type="file" id="videoInput" accept="video/*" multiple>
+          <input type="file" id="videoInput" accept="video/*,image/*" multiple>
           <div id="videoTabContainer"></div>
         </div>
-
         <div class="control-group">
           <label>文本内容</label>
           <textarea id="subtitle" placeholder="请输入文本内容"></textarea>
@@ -73,6 +70,27 @@
               </select>
             </div>
           </div>
+          <div class="row">
+            <div class="control-group">
+              <label>粒子特效</label>
+              <select id="particleEffect">
+                <option value="none">无效果</option>
+                <option value="golden-dust">金色斑点</option>
+                <option value="starlight">白色五角星</option>
+                <option value="fireflies">萤火虫</option>
+                <option value="sakura">樱花花瓣</option>
+                <option value="sakura-flower">樱花花朵</option>
+                <option value="feathers">羽毛</option>
+                <option value="hearts">爱心</option>
+                <option value="snowflakes">雪花</option>
+                <option value="balloons">彩色气球 </option>
+                <option value="notes">音符</option>
+                <option value="bubbles">气泡</option>
+                <option value="pixels">像素方块</option>
+                <option value="golden-rays">星芒</option>
+              </select>
+            </div>
+          </div>
           <div class="toggle-row">
             <input type="checkbox" id="pingPongToggle" checked>
             <label for="pingPongToggle">正反交替循环</label>
@@ -111,16 +129,12 @@
             </optgroup>
           </select>
         </div>
-
         <div class="control-group">
           <label for="watermarkText">水印文字</label>
           <input type="text" id="watermarkText" value="Attribution to Elevenlabs.io" placeholder="输入水印内容">
         </div>
-
         <button id="exportBtn">导出视频</button>
-
       </div>
-
       <div class="right-preview">
         <div id="previewPlaceholder" class="preview-hint">
           <span class="icon">🎬</span>
@@ -133,23 +147,18 @@
             <div id="resizeHandle"></div>
           </div>
         </div>
-
         <div class="progress-section">
           <div class="progress-container" id="progressContainer">
             <div class="progress-label">
-              <!-- 左侧：整体批量进度 + 状态文字 -->
               <div class="progress-label-left">
-                <!-- 整体进度计数，格式：当前/总数，例如 3/7 -->
                 <span id="progressBatchLabel" class="progress-batch-label">0/0</span>
                 <span>正在渲染，请等待...</span>
               </div>
-              <!-- 右侧：当前视频百分比 -->
               <span id="progressPct">0%</span>
             </div>
             <div class="progress-bar">
               <div class="progress-fill" id="progressFill"></div>
             </div>
-            <!-- 导出状态提示文字 -->
             <div id="statusHint">导出完成后将自动弹出保存对话框</div>
           </div>
         </div>
@@ -157,8 +166,8 @@
       </div>
     </div>
   </div>
+  <script src="/js/core.js"></script>
   <script src="/js/page.js"></script>
   <script src="/js/toastify.js"></script>
 </body>
-
 </html>

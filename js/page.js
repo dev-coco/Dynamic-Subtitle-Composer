@@ -46,8 +46,146 @@ const fontFamilySelect = document.getElementById('fontFamily')
 const watermarkInput = document.getElementById('watermarkText')
 const watermarkPositionSelect = document.getElementById('watermarkPosition')
 const progressBatchLabel = document.getElementById('progressBatchLabel')
+const particleEffectSelect = document.getElementById('particleEffect')
 
-// 读取当前所有配置
+// 粒子预览相关状态
+let previewAnimationFrame
+// 当前预览区域的粒子列表
+let previewParticles = []
+
+// 判断文件是否为图片
+function isImageFile (file) {
+  return file.type.startsWith('image/')
+}
+
+/**
+ * @description 获取或创建预览用的 <img> 元素
+ * @returns {HTMLImageElement}
+ */
+function getOrCreateImagePreview () {
+  let imgEl = document.getElementById('imagePreview')
+  if (!imgEl) {
+    imgEl = document.createElement('img')
+    imgEl.id = 'imagePreview'
+    imgEl.style.cssText = 'width:100%;max-height:1200px;display:none;object-fit:contain;'
+    // 插入到 videoContainer 最前面，确保在 textOverlay 之下
+    videoContainer.insertBefore(imgEl, videoContainer.firstChild)
+  }
+  return imgEl
+}
+
+/**
+ * @description 根据文件类型切换预览元素（视频或图片）
+ * @param {File} file - 要预览的文件
+ * @param {Function} [onReady] - 媒体就绪后的回调
+ */
+function switchMediaPreview (file, onReady) {
+  const imgEl = getOrCreateImagePreview()
+
+  if (isImageFile(file)) {
+    // 隐藏视频，显示图片
+    videoPreview.style.display = 'none'
+    videoPreview.src = ''
+    imgEl.style.display = 'block'
+    imgEl.onload = () => {
+      if (onReady) onReady()
+    }
+    imgEl.src = URL.createObjectURL(file)
+  } else {
+    // 隐藏图片，显示视频
+    imgEl.style.display = 'none'
+    imgEl.src = ''
+    videoPreview.style.display = 'block'
+    videoPreview.src = URL.createObjectURL(file)
+    videoPreview.muted = true
+    videoPreview.onloadedmetadata = () => {
+      if (onReady) onReady()
+    }
+    videoPreview.onloadeddata = () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const wmEl = document.getElementById('watermarkPreview')
+          if (wmEl && wmEl.textContent) wmEl.style.color = sampleWatermarkColor()
+          initPreviewParticles()
+        })
+      })
+    }
+  }
+}
+
+/**
+ * @description 创建预览区域的粒子 Canvas
+ * @returns {HTMLCanvasElement}
+ */
+function createOrResizePreviewParticleCanvas () {
+  let pCanvas = document.getElementById('previewParticleCanvas')
+  if (!pCanvas) {
+    pCanvas = document.createElement('canvas')
+    pCanvas.id = 'previewParticleCanvas'
+    pCanvas.style = 'position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1;'
+    videoContainer.appendChild(pCanvas)
+  }
+
+  // 以视频元素的实际渲染尺寸为准
+  const videoRect = videoPreview.getBoundingClientRect()
+  const containerRect = videoContainer.getBoundingClientRect()
+  const width = Math.max(1, Math.round(videoRect.width || containerRect.width))
+  const height = Math.max(1, Math.round(videoRect.height || containerRect.height))
+
+  // 设置 canvas 的物理像素尺寸
+  pCanvas.width = width
+  pCanvas.height = height
+  pCanvas.style.width = width + 'px'
+  pCanvas.style.height = height + 'px'
+
+  return pCanvas
+}
+
+/**
+ * @description 初始化预览粒子动画
+ */
+function initPreviewParticles () {
+  const effect = particleEffectSelect.value
+  let pCanvas = document.getElementById('previewParticleCanvas')
+
+  if (effect === 'none') {
+    if (pCanvas) pCanvas.style.display = 'none'
+    cancelAnimationFrame(previewAnimationFrame)
+    return
+  }
+
+  pCanvas = createOrResizePreviewParticleCanvas()
+  pCanvas.style.display = 'block'
+  const ctx = pCanvas.getContext('2d')
+
+  // 创建 60 个粒子随机散布
+  previewParticles = Array.from({ length: 60 }, () => new Particle(pCanvas.width, pCanvas.height, effect, true))
+
+  let lastTime = 0
+
+  // 使用 requestAnimationFrame 驱动的动画循环
+  function animate (timestamp) {
+    if (!lastTime) lastTime = timestamp
+    // 以 60fps (16.67ms/frame) 为基准，最大 2 倍速
+    const dt = Math.min(2, (timestamp - lastTime) / 16.67)
+    lastTime = timestamp
+
+    ctx.clearRect(0, 0, pCanvas.width, pCanvas.height)
+
+    previewParticles.forEach(p => {
+      p.update(dt)
+      p.draw(ctx)
+    })
+
+    previewAnimationFrame = requestAnimationFrame(animate)
+  }
+
+  // 先停止旧动画，避免多个动画循环并存
+  cancelAnimationFrame(previewAnimationFrame)
+  previewAnimationFrame = requestAnimationFrame(animate)
+}
+
+// 读取当前所有配置（含粒子特效）
 function readStyleFromUI () {
   return {
     fontSize: fontSizeInput.value,
@@ -58,7 +196,8 @@ function readStyleFromUI () {
     lineHeightMult: document.getElementById('lineHeightMult').value,
     pingPong: document.getElementById('pingPongToggle').checked,
     watermarkText: watermarkInput.value,
-    watermarkPosition: watermarkPositionSelect.value
+    watermarkPosition: watermarkPositionSelect.value,
+    particleEffect: particleEffectSelect.value
   }
 }
 
@@ -74,6 +213,7 @@ function readStyleFromUI () {
  * @param {boolean} [style.pingPong] - 是否启用往返滚动效果
  * @param {string} [style.watermarkText] - 水印文本内容
  * @param {string} [style.watermarkPosition] - 水印显示位置
+ * @param {string} [style.particleEffect] - 粒子特效类型
  */
 function applyStyleToUI (style) {
   if (!style) return
@@ -86,6 +226,7 @@ function applyStyleToUI (style) {
   if (style.pingPong !== undefined) document.getElementById('pingPongToggle').checked = style.pingPong
   if (style.watermarkText !== undefined) watermarkInput.value = style.watermarkText
   if (style.watermarkPosition !== undefined) watermarkPositionSelect.value = style.watermarkPosition
+  if (style.particleEffect !== undefined) particleEffectSelect.value = style.particleEffect
 }
 
 // 默认样式配置
@@ -99,7 +240,8 @@ function getDefaultStyle () {
     lineHeightMult: '1.5',
     pingPong: true,
     watermarkText: 'Attribution to Elevenlabs.io',
-    watermarkPosition: 'bottom-right'
+    watermarkPosition: 'bottom-right',
+    particleEffect: 'none'
   }
 }
 
@@ -135,161 +277,37 @@ function notify (text) {
   }).showToast()
 }
 
-/**
- * @description 分析区域颜色并返回合适的水印颜色
- * @param {CanvasRenderingContext2D} ctx - Canvas 2D 绘图上下文
- * @param {number} x - 分析区域左上角的 X 坐标
- * @param {number} y - 分析区域左上角的 Y 坐标
- * @param {number} width - 分析区域宽度
- * @param {number} height - 分析区域高度
- * @returns {string} 根据背景颜色计算得到的适合显示水印的 RGB 颜色字符串
- */
-function analyzeAreaColor (ctx, x, y, width, height) {
-  // 确保分析区域在画布范围内
-  x = Math.max(0, x)
-  y = Math.max(0, y)
-  width = Math.min(ctx.canvas.width - x, width)
-  height = Math.min(ctx.canvas.height - y, height)
-
-  // 如果区域太小，返回默认颜色
-  if (width <= 0 || height <= 0) {
-    return '#ffffff'
-  }
-
-  const imageData = ctx.getImageData(x, y, width, height)
-  const data = imageData.data
-  let totalR = 0
-  let totalG = 0
-  let totalB = 0
-
-  // 计算区域平均颜色
-  for (let i = 0; i < data.length; i += 4) {
-    totalR += data[i]
-    totalG += data[i + 1]
-    totalB += data[i + 2]
-  }
-
-  const pixels = data.length / 4
-  const avgR = totalR / pixels
-  const avgG = totalG / pixels
-  const avgB = totalB / pixels
-
-  // 计算亮度 (使用相对亮度公式)
-  const brightness = (avgR * 0.299 + avgG * 0.587 + avgB * 0.114) / 255
-
-  // 计算背景色的HSL值
-  const [h, s, l] = rgbToHsl(avgR, avgG, avgB)
-
-  // 根据背景颜色决定水印颜色并增加对比度
-  if (brightness > 0.5) {
-    // 如果背景偏亮，使用深色水印
-    // 保持色相，增加饱和度，大幅降低亮度
-    const [r, g, b] = hslToRgb(h, 0.8, 0.1)
-    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`
-  } else {
-    // 如果背景偏暗，使用亮色水印
-    // 保持色相，降低饱和度，大幅提高亮度
-    const [r, g, b] = hslToRgb(h, 0.2, 0.9)
-    return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`
-  }
-}
-
-/**
- * @description 将 RGB 转换为 HSL
- * @param {number} r - 红色通道值，范围 0 到 255
- * @param {number} g - 绿色通道值，范围 0 到 255
- * @param {number} b - 蓝色通道值，范围 0 到 255
- * @returns {number[]} 返回 HSL 数组，包含色相 h、饱和度 s、亮度 l，范围均为 0 到 1
- */
-function rgbToHsl (r, g, b) {
-  r /= 255
-  g /= 255
-  b /= 255
-
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
-  let h
-  let s
-  const l = (max + min) / 2
-
-  if (max === min) {
-    h = s = 0
-  } else {
-    const d = max - min
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-
-    switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0)
-        break
-      case g:
-        h = (b - r) / d + 2
-        break
-      case b:
-        h = (r - g) / d + 4
-        break
-    }
-
-    h /= 6
-  }
-
-  return [h, s, l]
-}
-
-/**
- * @description 将 HSL 转换为 RGB
- * @param {number} h - 色相值，范围 0 到 1
- * @param {number} s - 饱和度值，范围 0 到 1
- * @param {number} l - 亮度值，范围 0 到 1
- * @returns {number[]} 返回 RGB 数组，包含 r、g、b 三个通道值，范围 0 到 255
- */
-function hslToRgb (h, s, l) {
-  let r, g, b
-
-  if (s === 0) {
-    r = g = b = l
-  } else {
-    const hue2rgb = (p, q, t) => {
-      if (t < 0) t += 1
-      if (t > 1) t -= 1
-      if (t < 1 / 6) return p + (q - p) * 6 * t
-      if (t < 1 / 2) return q
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
-      return p
-    }
-
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
-    const p = 2 * l - q
-
-    r = hue2rgb(p, q, h + 1 / 3)
-    g = hue2rgb(p, q, h)
-    b = hue2rgb(p, q, h - 1 / 3)
-  }
-
-  return [r * 255, g * 255, b * 255]
-}
-
-// 用临时 canvas 截取当前视频帧，分析水印区域背景色
+// 用临时 canvas 截取当前帧（视频或图片），分析水印区域背景色
 function sampleWatermarkColor () {
   // 获取水印文本
   const wmText = watermarkInput ? watermarkInput.value.trim() : ''
-
-  // 没有水印文本时，默认返回白色
-  if (!wmText || videoPreview.readyState < 2) return '#ffffff'
+  if (!wmText) return '#ffffff'
 
   const tmpCanvas = document.createElement('canvas')
+  let source = null
+  let vw, vh
 
-  // 获取视频尺寸
-  const vw = videoPreview.videoWidth || videoContainer.offsetWidth
-  const vh = videoPreview.videoHeight || videoContainer.offsetHeight
+  // 图片用 <img>，视频用 <video>
+  const imgEl = document.getElementById('imagePreview')
+  if (imgEl && imgEl.style.display !== 'none' && imgEl.complete && imgEl.naturalWidth > 0) {
+    source = imgEl
+    vw = imgEl.naturalWidth
+    vh = imgEl.naturalHeight
+  } else {
+    // 没有水印文本时，默认返回白色
+    if (videoPreview.readyState < 2) return '#ffffff'
+    source = videoPreview
+    vw = videoPreview.videoWidth || videoContainer.offsetWidth
+    vh = videoPreview.videoHeight || videoContainer.offsetHeight
+  }
 
   tmpCanvas.width = vw
   tmpCanvas.height = vh
 
   const tmpCtx = tmpCanvas.getContext('2d', { willReadFrequently: true })
 
-  // 预览视频
-  tmpCtx.drawImage(videoPreview, 0, 0, vw, vh)
+  // 预览视频/图片
+  tmpCtx.drawImage(source, 0, 0, vw, vh)
 
   // 水印字体大小
   const wmFs = Math.max(30, vw * 0.022)
@@ -454,6 +472,20 @@ document.getElementById('pingPongToggle').addEventListener('change', onStyleChan
 watermarkInput.addEventListener('input', onStyleChange)
 watermarkPositionSelect.addEventListener('change', onStyleChange)
 
+// 粒子特效下拉变化时，保存配置并重新初始化预览粒子
+particleEffectSelect.addEventListener('change', () => {
+  syncStyleToCurrentVideo()
+  saveSettings()
+  initPreviewParticles()
+})
+
+// 窗口缩放时重新适配粒子 Canvas 尺寸
+window.addEventListener('resize', () => {
+  if (videoContainer.style.display !== 'none' && particleEffectSelect.value !== 'none') {
+    initPreviewParticles()
+  }
+})
+
 function syncOverlayToCurrentVideo () {
   perVideoOverlaySettings[currentEditingVideoIndex] = { ...overlaySettings }
 }
@@ -471,9 +503,6 @@ function switchPreviewVideo (idx) {
 
   currentEditingVideoIndex = idx
 
-  // 加载对应视频
-  videoPreview.src = URL.createObjectURL(videoFiles[idx])
-  videoPreview.muted = true
   videoContainer.style.display = 'block'
   previewPlaceholder.style.display = 'none'
 
@@ -493,15 +522,18 @@ function switchPreviewVideo (idx) {
     btn.classList.toggle('active', i === idx)
   })
 
-  videoPreview.onloadedmetadata = () => updatePreviewText()
-  videoPreview.onloadeddata = () => {
+  // 根据文件类型切换预览元素
+  switchMediaPreview(videoFiles[idx], () => {
+    updatePreviewText()
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const wmEl = document.getElementById('watermarkPreview')
         if (wmEl && wmEl.textContent) wmEl.style.color = sampleWatermarkColor()
+        // 视频切换后重新初始化粒子预览
+        initPreviewParticles()
       })
     })
-  }
+  })
 }
 
 function renderVideoTabs () {
@@ -527,7 +559,7 @@ function renderVideoTabs () {
   })
 }
 
-// 读取视频文件
+// 读取视频/图片文件
 videoInput.onchange = e => {
   const files = Array.from(e.target.files)
   if (!files.length) return
@@ -555,20 +587,21 @@ videoInput.onchange = e => {
 
   applyStyleToUI(getStyleForVideo(0))
 
-  videoPreview.src = URL.createObjectURL(files[0])
-  videoPreview.muted = true
   videoContainer.style.display = 'block'
   previewPlaceholder.style.display = 'none'
-  videoPreview.onloadedmetadata = () => updatePreviewText()
-  videoPreview.onloadeddata = () => {
-    // 延迟一帧，确保视频画面真正渲染到页面后再采样
+
+  // 根据文件类型切换预览元素
+  switchMediaPreview(files[0], () => {
+    updatePreviewText()
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const wmEl = document.getElementById('watermarkPreview')
         if (wmEl && wmEl.textContent) wmEl.style.color = sampleWatermarkColor()
+        // 视频加载完成后初始化粒子预览
+        initPreviewParticles()
       })
     })
-  }
+  })
 
   renderVideoTabs()
 }
@@ -691,7 +724,8 @@ exportBtn.addEventListener('click', async () => {
     const videoData = await toBase64(task.videoFile)
 
     notify('正在获取音频')
-    const audioBlob = await textToSpeech(task.textContent, voicePack.value)
+    // const audioBlob = await textToSpeech(task.textContent, voicePack.value)
+    const audioBlob = await fetch('/1.mp3').then(r => r.blob())
     notify('获取音频完成')
     setProgress(10)
 
@@ -727,6 +761,7 @@ exportBtn.addEventListener('click', async () => {
           pingPong: task.style.pingPong,
           watermarkText: task.style.watermarkText,
           watermarkPosition: task.style.watermarkPosition,
+          particleEffect: task.style.particleEffect || 'none',
           batchIndex: i,
           batchTotal: totalTasks
         }
