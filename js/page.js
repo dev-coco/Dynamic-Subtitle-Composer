@@ -724,8 +724,7 @@ exportBtn.addEventListener('click', async () => {
     const videoData = await toBase64(task.videoFile)
 
     notify('正在获取音频')
-    // const audioBlob = await textToSpeech(task.textContent, voicePack.value)
-    const audioBlob = await fetch('/1.mp3').then(r => r.blob())
+    const audioBlob = await textToSpeech(task.textContent, voicePack.value)
     notify('获取音频完成')
     setProgress(10)
 
