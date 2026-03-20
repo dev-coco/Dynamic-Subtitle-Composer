@@ -840,7 +840,8 @@ async function audioToSubtitle (blob, token) {
     }
   }
 
-  const json = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent', {
+  // 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent'
+  const json = await fetch('https://appcatalyst.pa.googleapis.com/v1beta1/models/gemini-3-flash-preview:generateContent', {
     headers: { authorization: 'Bearer ' + token },
     body: JSON.stringify(param),
     method: 'POST',
